@@ -6,3 +6,5 @@ CREATE TABLE pokemon (
     description TEXT,
     shakespeare_description TEXT
 );
+
+CREATE UNIQUE INDEX pokemon_name ON pokemon(name);

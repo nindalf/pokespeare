@@ -6,6 +6,7 @@ mod configuration;
 mod external_api;
 mod routes;
 mod startup;
+mod storage;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
