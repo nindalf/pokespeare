@@ -3,6 +3,7 @@ use std::net::TcpListener;
 use sqlx::PgPool;
 
 mod configuration;
+mod external_api;
 mod routes;
 mod startup;
 
