@@ -1,3 +1,4 @@
+mod configuration;
 mod routes;
 
 use std::net::TcpListener;
