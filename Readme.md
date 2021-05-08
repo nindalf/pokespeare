@@ -1,5 +1,7 @@
 # Pokespeare - A simple CRUD app written in Rust
 
+![Build passing](https://github.com/nindalf/pokespeare/actions/workflows/rust.yml/badge.svg) [![Rust Report Card](https://rust-reportcard.xuri.me/badge/github.com/nindalf/pokespeare)](https://rust-reportcard.xuri.me/report/github.com/nindalf/pokespeare) ![License](https://img.shields.io/github/license/nindalf/pokespeare)
+
 ## Problem statement
 
 > Given a Pokemon name, return it's Shakespearean description.
