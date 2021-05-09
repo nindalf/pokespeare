@@ -1,8 +1,8 @@
-use anyhow::anyhow;
 use reqwest::StatusCode;
 #[derive(serde::Deserialize)]
 struct PokedexEntry {
     id: i32,
+    name: String,
     flavor_text_entries: Vec<FlavourTextEntry>,
 }
 
@@ -16,31 +16,53 @@ struct Language {
     name: String,
 }
 
-// TODO change this fn to return thiserror instead of anyhow
-// Check for specific errors in unit tests
+pub(crate) struct Pokemon {
+    pub id: i32,
+    pub name: String,
+    pub description: String,
+}
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub(crate) enum PokeError {
+    #[error("Not Found")]
+    NotFound,
+    #[error("No Flavour Text")]
+    NoFlavourText,
+    #[error("APIError")]
+    APIError,
+}
+
 pub(crate) async fn get_pokemon_id_and_description(
     pokemon_name: &str,
-) -> anyhow::Result<(i32, String)> {
+) -> Result<Pokemon, PokeError> {
     #[cfg(not(test))]
     let url = "https://pokeapi.co/api/v2/pokemon-species";
     #[cfg(test)]
     let url = &mockito::server_url();
 
-    let resp = reqwest::get(format!("{}/{}", url, pokemon_name)).await?;
-    if resp.status() != StatusCode::OK {
-        return Err(anyhow!("Received non-200 response"));
+    let resp = reqwest::get(format!("{}/{}", url, pokemon_name))
+        .await
+        .map_err(|_| PokeError::APIError)?;
+    if resp.status() == StatusCode::NOT_FOUND {
+        return Err(PokeError::NotFound);
     }
+    let entry = resp
+        .json::<PokedexEntry>()
+        .await
+        .map_err(|_| PokeError::APIError)?;
 
-    let entry = resp.json::<PokedexEntry>().await?;
     let flavour = entry
         .flavor_text_entries
         .iter()
         .filter(|entry| entry.language.name == "en")
         .next()
-        .ok_or_else(|| anyhow!("Couldn't find any descriptions"))?;
+        .ok_or_else(|| PokeError::NoFlavourText)?;
 
     let extra_chars: &[_] = &['\x0C', '\n'];
-    Ok((entry.id, flavour.flavor_text.replace(extra_chars, " ")))
+    Ok(Pokemon {
+        id: entry.id,
+        name: entry.name,
+        description: flavour.flavor_text.replace(extra_chars, " "),
+    })
 }
 
 #[cfg(test)]
@@ -51,12 +73,13 @@ mod tests {
         let _m = mockito::mock("GET", "/charizard")
             .with_status(200)
             .with_header("content-type", "application/json; charset=utf-8")
-            .with_body_from_file("/Users/nindalf/Repos/pokespeare/src/external_api/test_responses/pokemon_success.json")
+            .with_body_from_file("./src/external_api/test_responses/pokemon_success.json")
             .create();
         match get_pokemon_id_and_description("charizard").await {
-            Ok((id, description)) => {
-                assert_eq!(id, 6);
-                assert_eq!(description, "Spits fire that is hot enough to melt boulders. Known to cause forest fires unintentionally.");
+            Ok(pokemon) => {
+                assert_eq!(pokemon.id, 6);
+                assert_eq!(pokemon.name, "charizard");
+                assert_eq!(pokemon.description, "Spits fire that is hot enough to melt boulders. Known to cause forest fires unintentionally.");
             }
             Err(err) => {
                 panic!("{}", err);
@@ -72,7 +95,8 @@ mod tests {
             .with_body("Not Found")
             .create();
         let result = get_pokemon_id_and_description("goku").await;
-        assert!(result.is_err())
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), PokeError::NotFound);
     }
 
     #[actix_rt::test]
@@ -83,6 +107,19 @@ mod tests {
             .with_body(r#"{"id": 3, "flavor_text_entries": [])"#)
             .create();
         let result = get_pokemon_id_and_description("charmander").await;
-        assert!(result.is_err())
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), PokeError::APIError);
+    }
+
+    #[actix_rt::test]
+    async fn test_empty_output() {
+        let _m = mockito::mock("GET", "/charizard")
+            .with_status(200)
+            .with_header("content-type", "application/json; charset=utf-8")
+            .with_body_from_file("./src/external_api/test_responses/pokemon_failure.json")
+            .create();
+        let result = get_pokemon_id_and_description("charizard").await;
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), PokeError::NoFlavourText);
     }
 }

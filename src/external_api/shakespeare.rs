@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use reqwest::StatusCode;
 #[derive(serde::Deserialize)]
 struct ApiResponse {
@@ -15,10 +14,17 @@ struct Contents {
 struct SuccessFlag {
     total: i32,
 }
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub(crate) enum ShakespeareError {
+    #[error("Not Found")]
+    TranslationFailed,
+    #[error("APIError")]
+    APIError,
+}
 
 // TODO change this fn to return thiserror instead of anyhow
 // Check for specific errors in unit tests
-pub(crate) async fn translate(input: &str) -> anyhow::Result<String> {
+pub(crate) async fn translate(input: &str) -> Result<String, ShakespeareError> {
     #[cfg(not(test))]
     let url = "https://api.funtranslations.com/translate/shakespeare.json";
     #[cfg(test)]
@@ -26,15 +32,24 @@ pub(crate) async fn translate(input: &str) -> anyhow::Result<String> {
 
     let client = reqwest::Client::new();
     let form_data = [("text", input)];
-    let resp = client.post(url).form(&form_data).send().await?;
+    let resp = client
+        .post(url)
+        .form(&form_data)
+        .send()
+        .await
+        .map_err(|_| ShakespeareError::APIError)?;
+
     if resp.status() != StatusCode::OK {
-        return Err(anyhow!("Received non-200 response"));
+        return Err(ShakespeareError::TranslationFailed);
     }
 
-    let api_response = resp.json::<ApiResponse>().await?;
+    let api_response = resp
+        .json::<ApiResponse>()
+        .await
+        .map_err(|_| ShakespeareError::APIError)?;
 
     if api_response.success.total <= 0 {
-        return Err(anyhow!("Failed to translate"));
+        return Err(ShakespeareError::TranslationFailed);
     }
 
     Ok(api_response.contents.translated)
@@ -48,9 +63,13 @@ mod tests {
         let _m = mockito::mock("POST", "/")
             .with_status(200)
             .with_header("content-type", "application/json; charset=utf-8")
-            .with_body_from_file("/Users/nindalf/Repos/pokespeare/src/external_api/test_responses/shakespeare_success.json")
+            .with_body_from_file("./src/external_api/test_responses/shakespeare_success.json")
             .create();
-        match translate("charizard").await {
+        match translate(
+            "You gave Mr. Tim a hearty meal, but unfortunately what he ate made him die.",
+        )
+        .await
+        {
             Ok(translation) => {
                 assert_eq!(translation, "Thee did giveth mr. Tim a hearty meal,  but unfortunately what he did doth englut did maketh him kicketh the bucket.");
             }
@@ -62,23 +81,37 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_bad_input() {
-        let _m = mockito::mock("GET", "/")
+        let _m = mockito::mock("POST", "/")
             .with_status(404)
             .with_header("content-type", "text/plain; charset=utf-8")
             .with_body("Not Found")
             .create();
         let result = translate("bad input").await;
-        assert!(result.is_err())
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), ShakespeareError::TranslationFailed);
     }
 
     #[actix_rt::test]
     async fn test_malformed_output() {
-        let _m = mockito::mock("GET", "/charmander")
+        let _m = mockito::mock("POST", "/")
             .with_status(200)
             .with_header("content-type", "application/json; charset=utf-8")
-            .with_body(r#"{"success": {"total": 0}}"#)
+            .with_body(r#"{"success": {"total": 1}}"#)
             .create();
-        let result = translate("charmander").await;
-        assert!(result.is_err())
+        let result = translate("malformed output").await;
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), ShakespeareError::APIError);
+    }
+
+    #[actix_rt::test]
+    async fn test_bad_translation() {
+        let _m = mockito::mock("POST", "/")
+            .with_status(200)
+            .with_header("content-type", "application/json; charset=utf-8")
+            .with_body_from_file("./src/external_api/test_responses/shakespeare_failure.json")
+            .create();
+        let result = translate("bad translation").await;
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), ShakespeareError::TranslationFailed);
     }
 }
