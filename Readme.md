@@ -27,7 +27,7 @@ Useful APIs
 
 ## Setup
 
-Install Rust ([instructions](https://www.rust-lang.org/tools/install)) and Docker ([instructions](https://docs.docker.com/get-docker/))
+Step 0 - Install Rust ([instructions](https://www.rust-lang.org/tools/install)) and Docker ([instructions](https://docs.docker.com/get-docker/))
 
 Step 1 - Initial setup - clone the repo and set up the database
 
@@ -82,3 +82,9 @@ Areas where this app should improve, in order of urgency+importance.
 4. Deploy to multiple nodes with loadbalancing.
 5. Database sharding/replication.
 6. Auto-scaling.
+
+---
+
+## Acknowledgements
+
+This repo is based on the book [Zero To Production In Rust](https://www.zero2prod.com/index.html). Large parts of this, including the DB setup, CI setup, configuratoin management and library/framework selection are from that book.
