@@ -55,7 +55,7 @@ Step 2 - Run the app
 
 ```
 
-Step 3 - Eun unit tests and integration tests
+Step 3 - Run unit tests and integration tests
 
 ```bash
 ➜ cargo test
