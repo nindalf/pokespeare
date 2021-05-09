@@ -87,4 +87,4 @@ Areas where this app should improve, in order of urgency+importance.
 
 ## Acknowledgements
 
-This repo is based on the book [Zero To Production In Rust](https://www.zero2prod.com/index.html). Large parts of this, including the DB setup, CI setup, configuratoin management and library/framework selection are from that book.
+This repo is based on the book [Zero To Production In Rust](https://www.zero2prod.com/index.html). Large parts of this, including the DB setup, CI setup, configuration management and library/framework selection are from that book.
