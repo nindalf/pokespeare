@@ -50,7 +50,6 @@ mod tests {
     use sqlx::PgPool;
 
     #[actix_rt::test]
-    #[ignore]
     async fn test_store_and_read() {
         let settings =
             crate::configuration::get_configuration().expect("Failed to read configuration.");

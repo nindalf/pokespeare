@@ -39,24 +39,28 @@ pub(crate) async fn get_pokemon_id_and_description(
     #[cfg(test)]
     let url = &mockito::server_url();
 
+    println!("1");
+    println!("{}", url);
+
     let resp = reqwest::get(format!("{}/{}", url, pokemon_name))
         .await
         .map_err(|_| PokeError::APIError)?;
+    println!("1.5");
     if resp.status() == StatusCode::NOT_FOUND {
         return Err(PokeError::NotFound);
     }
+    println!("2");
     let entry = resp
         .json::<PokedexEntry>()
         .await
         .map_err(|_| PokeError::APIError)?;
-
+    println!("3");
     let flavour = entry
         .flavor_text_entries
         .iter()
-        .filter(|entry| entry.language.name == "en")
-        .next()
-        .ok_or_else(|| PokeError::NoFlavourText)?;
-
+        .find(|entry| entry.language.name == "en")
+        .ok_or(PokeError::NoFlavourText)?;
+    println!("4");
     let extra_chars: &[_] = &['\x0C', '\n'];
     Ok(Pokemon {
         id: entry.id,
