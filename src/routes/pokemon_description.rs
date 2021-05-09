@@ -1,7 +1,6 @@
 use actix_http::http;
 use actix_web::{get, web, HttpResponse};
 use sqlx::PgPool;
-use std::fmt::Display;
 
 use crate::{
     external_api::{
