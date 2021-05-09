@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, sqlx::FromRow)]
 pub(crate) struct Pokemon {
     pub id: i32,
     pub name: String,
@@ -10,11 +10,10 @@ pub(crate) struct Pokemon {
 }
 
 pub(crate) async fn get_pokemon(pool: &PgPool, pokemon_name: &str) -> Result<Pokemon> {
-    let result = sqlx::query_as!(
-        Pokemon,
+    let result: Pokemon = sqlx::query_as(
         "SELECT id, name, description, shakespeare_description FROM pokemon where name = $1",
-        pokemon_name
     )
+    .bind(pokemon_name)
     .fetch_one(pool)
     .await?;
     Ok(result)
@@ -27,13 +26,13 @@ pub(crate) async fn store_pokemon(
     description: &str,
     shakespeare_description: &str,
 ) -> Result<()> {
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO pokemon (id, name, description, shakespeare_description) VALUES($1, $2, $3, $4)",
-        id,
-        name,
-        description,
-        shakespeare_description
     )
+    .bind(id)
+    .bind(name)
+    .bind(description)
+    .bind(shakespeare_description)
     .execute(pool)
     .await?;
     Ok(())
@@ -41,7 +40,7 @@ pub(crate) async fn store_pokemon(
 
 #[allow(dead_code)]
 async fn delete_rows_pokemon(pool: &PgPool) -> Result<()> {
-    sqlx::query!("DELETE FROM pokemon").execute(pool).await?;
+    sqlx::query("DELETE FROM pokemon").execute(pool).await?;
     Ok(())
 }
 
@@ -51,6 +50,7 @@ mod tests {
     use sqlx::PgPool;
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_store_and_read() {
         let settings =
             crate::configuration::get_configuration().expect("Failed to read configuration.");
